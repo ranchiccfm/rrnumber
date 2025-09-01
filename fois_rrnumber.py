@@ -40,4 +40,50 @@ def fetch_rr_numbers_fois(rake_names, session_cookie, output_file="rake_rr_numbe
             try:
                 # Clear & type rake in search box
                 search_box = page.locator("input[type='search']")
-                search_box.fill(""_
+                search_box.fill("")
+                search_box.type(rake)
+                time.sleep(2)  # wait for table row to appear
+
+                # Check if row exists
+                row_locator = page.locator(f"tr:has-text('{rake}')")
+                if row_locator.count() == 0:
+                    print(f"No row found for {rake}, skipping")
+                    continue
+
+                # Click Load Name link (first one)
+                load_link = row_locator.locator("a[id^='LoadName']").first
+                load_link.click()
+
+                # Wait for modal with RR number
+                page.wait_for_selector("div.modal-body a", timeout=5000)
+                rr_links = page.locator("div.modal-body a")
+                rr_count = rr_links.count()
+
+                if rr_count == 1:
+                    rr_number = rr_links.first.inner_text().strip()
+                    results.append({"Rake Name": rake, "RR Number": rr_number})
+                    print(f"{rake} → {rr_number}")
+                else:
+                    print(f"{rake} has no RR or multiple RR, skipping")
+
+                # Close dialog
+                page.keyboard.press("Escape")
+                time.sleep(1)
+
+            except Exception as e:
+                print(f"Error fetching {rake}: {e}")
+                continue
+
+        browser.close()
+
+    # Save results to Excel
+    if results:
+        df = pd.DataFrame(results)
+        df.to_excel(output_file, index=False)
+        print(f"\n✅ RR Numbers saved to {output_file}")
+    else:
+        print("No RR numbers found to save.")
+
+# ---------------------------
+# Run the scraper
+fetch_rr_numbers_fois(rake_names, session_cookie)
